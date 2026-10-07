@@ -27,7 +27,7 @@ def index():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT published_time, company_name, location, announcement_type FROM announcements WHERE length(company_name) > 5 ORDER BY id DESC LIMIT 100;")
+        cur.execute("SELECT published_time, company_name, location, announcement_type FROM announcements WHERE length(company_name) > 5 ORDER BY id DESC LIMIT 500;")
         announcements = cur.fetchall()
         cur.close()
         conn.close()

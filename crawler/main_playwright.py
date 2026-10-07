@@ -102,7 +102,7 @@ async def crawl_playwright(max_pages=2):
             await page.goto(URL)
             
             # Sang tab Đăng ký thay đổi (Tuỳ chỉnh theo UI của web)
-            await page.click("a[href*='ctl00$C$RptProdGroups$ctl01$LnkActiveAnnType']")
+            await page.click("a[href*='ctl00$C$RptProdGroups$ctl02$LnkActiveAnnType']")
             await page.wait_for_load_state('networkidle')
             
             for p_idx in range(1, max_pages + 1):
