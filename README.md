@@ -62,7 +62,7 @@ docker compose up -d --build
 
 ## 6. Tính Năng Tích Hợp Google Drive
 Dự án được bổ sung tính năng **Lưu trữ PDF tự động vào Google Drive**:
-- **Công tắc UI**: Trên giao diện Web (Viewer), có một công tắc "Tự động tải & lưu Google Drive". Khi bật công tắc này, các nút bấm tải sẽ chuyển sang chế độ `Xem file PDF`.
+- **Công tắc UI**: Trên giao diện Web (Viewer), có một công tắc "Tự động tải & lưu Google Drive". Khi bật công tắc này, các nút bấm tải sẽ chuyển sang chế độ `Xem file PDF`. Đặc biệt, trạng thái bật/tắt này được phân tách độc lập cho từng tab phân loại và tự động lưu vào bảng `user_settings` trong cơ sở dữ liệu PostgreSQL để luôn được ghi nhớ kể cả khi tải lại trang.
 - **Cơ chế hoạt động**: Khi người dùng thao tác, hệ thống sẽ:
   1. Sử dụng Playwright tải file PDF về thư mục tạm cục bộ của máy chủ (`downloads/`).
   2. Sử dụng `google-api-python-client` và `credentials.json` (Service Account) để upload trực tiếp file PDF này lên thư mục Google Drive do người dùng chỉ định thông qua HTTP (đảm bảo tốc độ cao, không phụ thuộc vào việc mount volume FUSE vốn dễ gây lỗi).
