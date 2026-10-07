@@ -327,19 +327,6 @@
                 }
                 paginationEl.appendChild(createPageBtn(totalPages));
             }
-
-            const backToTopBtn = document.createElement('button');
-            backToTopBtn.innerHTML = '↑ Về đầu trang';
-            backToTopBtn.style.marginLeft = '10px';
-            backToTopBtn.style.background = '#f8fafc';
-            backToTopBtn.style.color = '#0f172a';
-            backToTopBtn.style.border = '1px solid #cbd5e1';
-            backToTopBtn.onmouseover = () => backToTopBtn.style.background = '#e2e8f0';
-            backToTopBtn.onmouseout = () => backToTopBtn.style.background = '#f8fafc';
-            backToTopBtn.onclick = () => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
-            paginationEl.appendChild(backToTopBtn);
         }
         
         function createPageBtn(pageNum) {
@@ -414,11 +401,60 @@
                 const type = activeTab.getAttribute('onclick').match(/'(.*?)'/)[1];
                 filterData(activeTab, type);
             }
+            
+            // Back to top logic
+            const floatingBtn = document.getElementById('floatingBackToTop');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    floatingBtn.classList.add('visible');
+                } else {
+                    floatingBtn.classList.remove('visible');
+                }
+            });
         });
+        
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     </script>
     <style>
         @keyframes spin {
             100% { transform: rotate(360deg); }
+        }
+        
+        .floating-back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #f8fafc;
+            color: #0f172a;
+            border: 1px solid #cbd5e1;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .floating-back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .floating-back-to-top:hover {
+            background: #e2e8f0;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
     </style>
 </head>
@@ -481,5 +517,10 @@
             <div id="pagination" class="pagination"></div>
         </div>
     </div>
+    
+    <button id="floatingBackToTop" class="floating-back-to-top" onclick="scrollToTop()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+        Về đầu trang
+    </button>
 </body>
 </html>
