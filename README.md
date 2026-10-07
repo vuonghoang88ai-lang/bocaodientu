@@ -41,6 +41,7 @@ docker compose up -d --build
    - Giao diện hiển thị tối đa 500 bản ghi mới nhất tích hợp hệ thống **Tab phân loại động** (Đăng ký mới, Đăng ký thay đổi, Giải thể, v.v...) lọc bằng Javascript.
    - **Phân trang (Pagination)**: Dữ liệu được tính toán và chia nhỏ 20 dòng/trang.
    - **Nút Về đầu trang (Floating)**: Tự động xuất hiện ở góc phải khi người dùng cuộn xuống trang, hỗ trợ trượt lên đầu trang nhanh chóng.
+   - **Tối ưu tốc độ tải trang**: Font chữ hiện đại "Outfit" (định dạng nén .woff2) được lưu trữ và tải trực tiếp từ máy chủ cục bộ (local host) thay vì qua Google Fonts, giúp UI phản hồi tức thời không độ trễ.
 2. **Giao diện Quản trị Database (Adminer):** Truy cập `http://localhost:8888`
    - **System:** PostgreSQL
    - **Server:** `db`
