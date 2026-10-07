@@ -241,19 +241,137 @@
             background: #2563eb;
         }
 
+        /* Toggle Switch Styles */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .switch-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            transition: .4s;
+            border: 1px solid var(--border-color);
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: .4s;
+        }
+        input:checked + .slider {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+            background-color: white;
+        }
+        .slider.round {
+            border-radius: 24px;
+        }
+        .slider.round:before {
+            border-radius: 50%;
+        }
     </style>
     <script>
+        let currentTabType = '';
+        let isDriveMode = false;
+        const dbSettings = {{ settings|tojson|safe }};
+
         function extractTaxCode(companyName) {
             const match = companyName.match(/\d{10,13}/);
             return match ? match[0] : null;
         }
 
-        async function downloadPDFAuto(companyName, announcementType, btnElement) {
+        function toggleDriveMode() {
+            isDriveMode = document.getElementById('autoDriveToggle').checked;
+            if (currentTabType) {
+                dbSettings['isDriveMode_' + currentTabType] = isDriveMode ? 'true' : 'false';
+                
+                fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: 'isDriveMode_' + currentTabType,
+                        value: isDriveMode
+                    })
+                }).catch(err => console.error("Error saving setting:", err));
+            }
+            
+            if (isDriveMode) {
+                // Call API or start logic to auto-download to Google Drive
+                console.log("Đã bật chế độ tự động tải & lưu Google Drive");
+            }
+            
+            updateButtonsState();
+        }
+
+        function updateButtonsState() {
+            const buttons = document.querySelectorAll('.btn-download');
+            buttons.forEach(btn => {
+                if (isDriveMode) {
+                    btn.innerHTML = `<svg class="btn-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> <span class="btn-text">Xem file PDF</span>`;
+                    btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                    btn.style.boxShadow = '0 4px 6px -1px rgba(16, 185, 129, 0.4)';
+                } else {
+                    btn.innerHTML = `<svg class="btn-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> <span class="btn-text">Tải PDF</span>`;
+                    btn.style.background = 'var(--primary-gradient)';
+                    btn.style.boxShadow = '0 4px 6px -1px rgba(59, 130, 246, 0.4)';
+                }
+            });
+        }
+
+        function handlePdfAction(btnElement) {
+            const companyName = btnElement.getAttribute('data-company');
+            const announcementType = btnElement.getAttribute('data-type');
+            
+            // Extract published time from the first column of the row
+            const row = btnElement.closest('tr');
+            const publishedTime = row.querySelector('td:nth-child(1)').innerText.trim();
+            
+            // If drive mode is ON, it will download and upload to drive automatically
+            downloadPDFAuto(companyName, announcementType, publishedTime, btnElement);
+        }
+
+        async function downloadPDFAuto(companyName, announcementType, publishedTime, btnElement) {
             const taxCode = extractTaxCode(companyName);
             if (!taxCode) return alert("Không tìm thấy mã số doanh nghiệp hợp lệ trong tên công ty.");
 
             const originalText = btnElement.innerHTML;
-            btnElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg> Tự giải Captcha...`;
+            const loadingText = isDriveMode ? "Đang tải & lưu Drive..." : "Tự giải Captcha...";
+            btnElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg> <span class="btn-text">${loadingText}</span>`;
             btnElement.style.pointerEvents = 'none';
             btnElement.style.opacity = '0.7';
 
@@ -261,13 +379,22 @@
                 const response = await fetch(`/api/download_pdf_auto/${taxCode}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ announcement_type: announcementType })
+                    body: JSON.stringify({ 
+                        announcement_type: announcementType,
+                        published_time: publishedTime,
+                        save_to_drive: isDriveMode
+                    })
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert("Tải thành công! Đang tải file xuống...");
-                    if (data.download_url) {
-                        window.location.href = data.download_url;
+                    if (data.is_drive_link) {
+                        alert("Đã tải và lưu thành công lên Google Drive!");
+                        window.open(data.download_url, '_blank');
+                    } else {
+                        alert("Tải thành công! Đang tải file xuống...");
+                        if (data.download_url) {
+                            window.location.href = data.download_url;
+                        }
                     }
                 } else {
                     alert("Lỗi: " + data.error);
@@ -352,6 +479,14 @@
         }
 
         function filterData(btn, type) {
+            currentTabType = type;
+            isDriveMode = dbSettings['isDriveMode_' + currentTabType] === 'true';
+            const toggle = document.getElementById('autoDriveToggle');
+            if (toggle) {
+                toggle.checked = isDriveMode;
+            }
+            updateButtonsState();
+
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             btn.classList.add('active');
             
@@ -465,14 +600,23 @@
             <p class="subtitle">Dữ liệu doanh nghiệp cập nhật tự động theo thời gian thực</p>
         </header>
 
-        <div class="tabs">
-            <button class="tab" onclick="filterData(this, 'ĐĂNG KÝ MỚI')">ĐĂNG KÝ MỚI</button>
-            <button class="tab active" onclick="filterData(this, 'ĐĂNG KÝ THAY ĐỔI')">ĐĂNG KÝ THAY ĐỔI</button>
-            <button class="tab" onclick="filterData(this, 'THÔNG BÁO THAY ĐỔI')">THÔNG BÁO THAY ĐỔI</button>
-            <button class="tab" onclick="filterData(this, 'VI PHẠM')">VI PHẠM/ THU HỒI</button>
-            <button class="tab" onclick="filterData(this, 'GIẢI THỂ')">GIẢI THỂ</button>
-            <button class="tab" onclick="filterData(this, 'LOẠI KHÁC')">LOẠI KHÁC</button>
-            <button class="tab" onclick="filterData(this, 'HTX')">HTX, LHHTX, CÁC ĐVTT VÀ TỔ HỢP TÁC</button>
+        <div class="tabs-container" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; width: 100%; padding: 0 1rem; margin-bottom: 0; gap: 1rem;">
+            <div class="tabs" style="padding: 0; width: auto;">
+                <button class="tab" onclick="filterData(this, 'ĐĂNG KÝ MỚI')">ĐĂNG KÝ MỚI</button>
+                <button class="tab active" onclick="filterData(this, 'ĐĂNG KÝ THAY ĐỔI')">ĐĂNG KÝ THAY ĐỔI</button>
+                <button class="tab" onclick="filterData(this, 'THÔNG BÁO THAY ĐỔI')">THÔNG BÁO THAY ĐỔI</button>
+                <button class="tab" onclick="filterData(this, 'VI PHẠM')">VI PHẠM/ THU HỒI</button>
+                <button class="tab" onclick="filterData(this, 'GIẢI THỂ')">GIẢI THỂ</button>
+                <button class="tab" onclick="filterData(this, 'LOẠI KHÁC')">LOẠI KHÁC</button>
+                <button class="tab" onclick="filterData(this, 'HTX')">HTX, LHHTX...</button>
+            </div>
+            <div class="switch-container">
+                <span class="switch-label">Tự động tải & lưu Google Drive</span>
+                <label class="switch">
+                    <input type="checkbox" id="autoDriveToggle" onchange="toggleDriveMode()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
         </div>
 
         <div class="table-wrapper" style="border-top-left-radius: 0;">
@@ -498,9 +642,9 @@
                             <td><span class="badge">{{ row[3] }}</span></td>
                             <td style="text-align: center;">
                                 <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                                    <button class="btn-download" onclick="downloadPDFAuto('{{ row[1] }}', '{{ row[3] }}', this)" title="Tải PDF tự động">
-                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                        Tải PDF
+                                    <button class="btn-download" data-company="{{ row[1] }}" data-type="{{ row[3] }}" onclick="handlePdfAction(this)" title="Thao tác PDF">
+                                        <svg class="btn-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                        <span class="btn-text">Tải PDF</span>
                                     </button>
                                 </div>
                             </td>

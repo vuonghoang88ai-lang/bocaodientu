@@ -4,3 +4,4 @@ __pycache__/
 downloads/
 .idea/
 .vscode/
+credentials.json

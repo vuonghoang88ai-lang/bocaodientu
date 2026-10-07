@@ -41,15 +41,38 @@ async def solve_recaptcha(api_key: str, website_url: str, site_key: str, max_ret
         print(f"Lỗi Captcha exception: {e}", flush=True)
     return None
 
-async def download_pdf_auto(ma_so_dn: str, announcement_type_vi: str, download_dir: str = "./downloads"):
-    if not os.path.exists(download_dir):
-        os.makedirs(download_dir)
+async def download_pdf_auto(ma_so_dn: str, announcement_type_vi: str, published_time: str, download_dir: str = "./downloads"):
+    import datetime
+    import glob
+    
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    
+    safe_published_time = published_time.replace("/", "-").replace(":", "-").replace(" ", "_")
+    
+    # 1. Logic kiểm tra file đã tồn tại: 
+    # Tìm tất cả file bắt đầu bằng mã số doanh nghiệp và thời gian đăng
+    existing_files = glob.glob(os.path.join(download_dir, '**', f"{ma_so_dn}_{safe_published_time}*.pdf"), recursive=True)
+    for existing_file in existing_files:
+        if os.path.isfile(existing_file) and os.path.getsize(existing_file) > 0:
+            print(f"[*] File cho MST {ma_so_dn} lúc {published_time} đã tồn tại tại {existing_file}. Bỏ qua tải lại.", flush=True)
+            # Tạo đường dẫn tương đối để API backend có thể mapping
+            rel_path = os.path.relpath(existing_file, download_dir)
+            rel_path = rel_path.replace("\\", "/")
+            return {"success": True, "ma_so_dn": ma_so_dn, "file_path": existing_file, "rel_path": rel_path, "message": "File already exists"}
+            
+    # 2. Logic tạo thư mục theo ngày
+    daily_download_dir = os.path.join(download_dir, today_str)
+    if not os.path.exists(daily_download_dir):
+        os.makedirs(daily_download_dir)
+        
+    daily_tmp_dir = os.path.join("/tmp", today_str)
+    if not os.path.exists(daily_tmp_dir):
+        os.makedirs(daily_tmp_dir)
         
     INPUT_MA_SO_DN_SELECTOR = "input[id$='ENT_GDT_CODEFld']"
     TABLE_RESULT_SELECTOR = "table#ctl00_C_CtlList, table.table" 
-    PDF_DOWNLOAD_BUTTON_SELECTOR = "input#ctl00_C_btnDownload, input[type='image'][src*='pdf'], a[id*='CmdView']" 
     
-    print(f"[*] Bắt đầu tiến trình tải PDF (Tự động 2Captcha) cho MST: {ma_so_dn}, Loại: {announcement_type_vi}", flush=True)
+    print(f"[*] Bắt đầu tiến trình tải PDF cho MST: {ma_so_dn}, Thời gian: {published_time}, Loại: {announcement_type_vi}", flush=True)
     
     type_map = {
         "Đăng ký mới": "NEW",
@@ -175,45 +198,97 @@ async def download_pdf_auto(ma_so_dn: str, announcement_type_vi: str, download_d
             print("[*] Đã tìm thấy kết quả! Tiến hành tải PDF trực tiếp từ danh sách...", flush=True)
             
             # Selector mới chuẩn xác theo nút PDF ở danh sách kết quả
-            pdf_btn = page.locator("input[id$='_LnkGetPDFActive']").first
+            print(f"[*] Đã tìm thấy kết quả! Tìm đúng hàng có thời gian: {published_time}...", flush=True)
             
-            # Kiểm tra xem có nút PDF không
-            if await pdf_btn.count() == 0:
-                # Nếu không có nút trực tiếp, thử ấn nút Xem chi tiết (nếu tồn tại luồng cũ)
-                detail_btn = page.locator("a[id$='_CmdView']").first
-                if await detail_btn.count() > 0:
-                    await detail_btn.click()
-                    await page.wait_for_load_state('networkidle')
-                    pdf_btn = page.locator("input#ctl00_C_btnDownload, input[type='image'][src*='pdf']").first
+            # Selector cho các nút PDF chỉ trong hàng tương ứng
+            row_locator = page.locator(f"table#ctl00_C_CtlList tr:has(td:has-text('{published_time}'))")
+            pdf_btns = row_locator.locator("input[id$='_LnkGetPDFActive']")
+            count = await pdf_btns.count()
             
-            # Chờ download hoàn tất với Playwright's native download manager
-            async with page.expect_download(timeout=60000) as download_info:
-                await pdf_btn.click()
-                
-            download = await download_info.value
+            for i in range(count):
+                try:
+                    # Set download behavior to save directly to shared volume
+                    client = await page.context.new_cdp_session(page)
+                    await client.send('Page.setDownloadBehavior', {
+                        'behavior': 'allow',
+                        'downloadPath': '/config/Downloads'
+                    })
+                    
+                    before_files = set(os.listdir(download_dir))
+                    
+                    await pdf_btns.nth(i).click()
+                    
+                    # Wait for new file to appear
+                    new_file = None
+                    for _ in range(60):
+                        await asyncio.sleep(1)
+                        current_files = set(os.listdir(download_dir))
+                        new_files = current_files - before_files
+                        finished_files = [f for f in new_files if not f.endswith('.crdownload')]
+                        if finished_files:
+                            new_file = finished_files[0]
+                            break
+                            
+                    if new_file:
+                        file_name = f"{ma_so_dn}_{safe_published_time}_{i}.pdf"
+                        file_path = os.path.join(daily_download_dir, file_name)
+                        
+                        import shutil
+                        downloaded_path = os.path.join(download_dir, new_file)
+                        if os.path.exists(downloaded_path) and os.path.getsize(downloaded_path) > 0:
+                            shutil.move(downloaded_path, file_path)
+                            await context.close()
+                            await browser.close()
+                            rel_path = os.path.relpath(file_path, download_dir).replace("\\", "/")
+                            return {"success": True, "ma_so_dn": ma_so_dn, "file_path": file_path, "rel_path": rel_path, "message": "Download success"}
+                        else:
+                            print(f"[-] Nút thứ {i+1} trả về file 0 byte, thử nút tiếp theo...", flush=True)
+                            if os.path.exists(downloaded_path):
+                                os.remove(downloaded_path)
+                    else:
+                        print(f"[-] Nút thứ {i+1} không sinh ra file tải về, thử nút tiếp theo...", flush=True)
+                except Exception as e:
+                    print(f"[-] Nút thứ {i+1} lỗi: {e}, thử nút tiếp theo...", flush=True)
+                    continue
+
+            # Fallback: xem chi tiết nếu tất cả nút ở ngoài đều lỗi hoặc không có. Thử tìm tất cả các thẻ 'a' hoặc '_CmdView'
+            detail_btns = row_locator.locator("a, [id$='_CmdView']")
+            count_detail = await detail_btns.count()
+            if count_detail > 0:
+                for i in range(count_detail):
+                    try:
+                        await detail_btns.nth(i).click()
+                        await page.wait_for_load_state('networkidle')
+                        pdf_btn = page.locator("input#ctl00_C_btnDownload, input[type='image'][src*='pdf']").first
+                        if await pdf_btn.count() > 0:
+                            async with page.expect_download(timeout=60000) as download_info:
+                                await pdf_btn.click()
+                            download = await download_info.value
+                            file_name = f"{ma_so_dn}_{safe_published_time}_detail_{i}.pdf"
+                            file_path = os.path.join(daily_download_dir, file_name)
+                            temp_file_path = os.path.join(daily_tmp_dir, f"temp_{file_name}")
+                            await download.save_as(temp_file_path)
+                            if os.path.exists(temp_file_path) and os.path.getsize(temp_file_path) > 0:
+                                import shutil
+                                shutil.move(temp_file_path, file_path)
+                                await context.close()
+                                await browser.close()
+                                rel_path = os.path.relpath(file_path, download_dir).replace("\\", "/")
+                                return {"success": True, "ma_so_dn": ma_so_dn, "file_path": file_path, "rel_path": rel_path, "message": "Download success"}
+                            else:
+                                print(f"[-] Detail thứ {i+1} trả về file 0 byte, thử chi tiết tiếp theo...", flush=True)
+                        await page.go_back()
+                        await page.wait_for_load_state('networkidle')
+                    except Exception as e:
+                        print(f"[-] Detail thứ {i+1} lỗi: {e}, thử nút tiếp theo...", flush=True)
+                        try:
+                            await page.go_back()
+                            await page.wait_for_load_state('networkidle')
+                        except:
+                            pass
+                        continue
             
-            file_name = f"{ma_so_dn}.pdf"
-            file_path = os.path.join(download_dir, file_name)
-            
-            print(f"[*] Đang ghi file xuống {file_path} bằng Playwright native...", flush=True)
-            # Lưu file an toàn
-            await download.save_as(file_path)
-            
-            if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
-                print("[-] Không tìm thấy file hoặc file bị 0 byte từ volume share", flush=True)
-                return {"success": False, "error": "File bị 0 byte hoặc không tải được"}
-            
-            print("[+] Tải file thành công!", flush=True)
-            
-            await context.close()
-            await browser.close()
-            
-            return {
-                "success": True,
-                "ma_so_dn": ma_so_dn,
-                "file_path": file_path,
-                "message": "Download success"
-            }
+            return {"success": False, "error": "File gốc trên máy chủ của Cổng Thông Tin bị lỗi (0 byte) và không có bản ghi dự phòng hợp lệ."}
             
     except PlaywrightTimeoutError as e:
         return {"success": False, "error": f"Hết thời gian chờ (Hoặc không tìm thấy kết quả)."}

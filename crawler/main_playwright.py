@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 from database import init_db, Announcement
 
 URL = 'https://bocaodientu.dkkd.gov.vn/egazette/Forms/Egazette/DefaultAnnouncements.aspx'
-API_KEY = "e55595e6f7d990ed4309c188a7074caa"
+API_KEY = "df7a0c1bec612e0cecca020e35ffaeb2"
 SITE_KEY = "6LewYU4UAAAAAD9dQ51Cj_A_1uHLOXw9wJIxi9x0" # Đã cập nhật Sitekey thật của trang web
 
 async def solve_recaptcha(api_key: str, website_url: str, site_key: str, max_retries: int = 60) -> str:
@@ -121,7 +121,7 @@ async def crawl_playwright(max_pages=2):
                     ann_type = await cells[3].inner_text()
                     
                     # Bộ chọn mới cho nút "Xem" chi tiết dựa trên phân tích HTML thực tế
-                    detail_btn = row.locator("a[id$='_CmdView']") 
+                    detail_btn = row.locator("[id$='_CmdView']") 
                     if await detail_btn.count() > 0:
                         await detail_btn.first.click()
                         await page.wait_for_load_state('networkidle')
@@ -163,8 +163,8 @@ async def main_loop():
         except Exception as e:
             print(f"[-] Lỗi trong quá trình cào dữ liệu: {e}")
         
-        print("[*] Hoàn thành chu kỳ. Đợi 3 phút (180s) cho chu kỳ tiếp theo...")
-        await asyncio.sleep(180)
+        print("[*] Hoàn thành chu kỳ. Đợi 5 phút (300s) cho chu kỳ tiếp theo...")
+        await asyncio.sleep(300)
 
 if __name__ == "__main__":
     asyncio.run(main_loop())
