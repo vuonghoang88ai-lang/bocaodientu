@@ -37,7 +37,7 @@ docker compose up -d --build
 ```
 
 ## 4. Cách Truy Cập Dữ Liệu
-1. **Giao diện Khách hàng (Viewer UI):** Truy cập `http://localhost:3000`. Giao diện này sẽ hiển thị 100 bản ghi mới nhất vừa cào được một cách cực kỳ trực quan, hỗ trợ khách hàng không cần đăng nhập.
+1. **Giao diện Khách hàng (Viewer UI):** Truy cập `http://localhost:3000`. Giao diện này hiển thị tối đa 500 bản ghi mới nhất và được tích hợp hệ thống **Tab phân loại động** (Đăng ký mới, Đăng ký thay đổi, Giải thể, v.v...). Bộ lọc hoạt động tức thời trên frontend (Javascript), hỗ trợ khách hàng theo dõi trực quan theo từng phân loại bố cáo.
 2. **Giao diện Quản trị Database (Adminer):** Truy cập `http://localhost:8888`
    - **System:** PostgreSQL
    - **Server:** `db`
@@ -53,6 +53,7 @@ docker compose up -d --build
   - Nhờ cơ chế này, quá trình ghi file thực hiện bởi ứng dụng backend đang chạy nên loại bỏ triệt để các rắc rối về cấp quyền (Permission Denied/chown 777) so với việc ép container Chromium độc lập tự ghi file.
 - Để vào tab "Đăng ký thay đổi", script gọi click vào đối tượng `ctl00$C$RptProdGroups$ctl02$LnkActiveAnnType` trên giao diện web.
 - **Mã số doanh nghiệp** đã được bóc tách từ các thẻ lồng bên trong bảng dữ liệu.
+- Cơ chế **Vòng lặp tự động (Auto-Loop)**: Script cào dữ liệu được bọc trong vòng lặp vô hạn `while True` và sử dụng `asyncio.sleep(180)` để tự động lặp lại quy trình cào mỗi 3 phút một lần.
 - Có cơ chế **Retry Connection** trong code kết nối CSDL để tránh Crash crawler khi PostgreSQL chưa khởi động kịp trong Docker.
 
 ## 6. Khắc phục lỗi thường gặp (Troubleshooting)
@@ -67,3 +68,12 @@ docker compose up -d --build
 - **Lỗi "File bị 0 byte hoặc không tải được" (Bất chấp đã cấp quyền 777)**:
   - **Nguyên nhân cốt lõi**: Sự xung đột giữa 2 cơ chế tải file. Code cũ đã cấu hình `Browser.setDownloadBehavior` qua CDP để ép trình duyệt lưu trực tiếp vào thư mục chia sẻ, nhưng ĐỒNG THỜI lại gọi hàm `page.expect_download()` và `download.save_as()` của Playwright. Khi dùng chung cả hai, trình duyệt tự lưu file thành công, nhưng Playwright bị "hẫng" luồng dữ liệu (stream) do cơ chế quản lý nội bộ bị qua mặt. Kết quả là lệnh `download.save_as()` của Playwright cố đọc luồng rỗng và ghi đè một file 0 byte lên đúng vị trí file thật vừa được tải.
   - **Cách khắc phục**: Phải gỡ bỏ hoàn toàn lệnh CDP `Browser.setDownloadBehavior` và `Page.setDownloadBehavior` tự chế. Chỉ cần khai báo `accept_downloads=True` lúc tạo context, gọi `page.expect_download()` và sử dụng duy nhất hàm `download.save_as()` mặc định của Playwright. Playwright sẽ tự động stream nội dung file qua websocket CDP và lưu xuống server an toàn, không bị xung đột thành 0 byte.
+
+- **Lỗi không hiển thị dữ liệu ở một số Tab (dù DB có dữ liệu)**:
+  - **Nguyên nhân**: Truy vấn SQL ở backend cũ chỉ lấy `LIMIT 100`. Nếu crawler chạy liên tục ở trang mặc định (Đăng ký mới), 100 bản ghi này sẽ bị chiếm dụng toàn bộ bởi "Đăng ký mới". Ngoài ra, chuỗi văn bản lấy từ DB đôi khi sai lệch với tên Tab (VD: Tab tên "ĐĂNG KÝ THAY ĐỔI" nhưng DB lưu là "Thay đổi nội dung ĐKDN").
+  - **Cách khắc phục**: Tăng `LIMIT` lên 500 trong `app.py`. Sửa file `index.html` của Viewer để map đúng các từ khóa ("Thay đổi nội dung", "Chuyển đổi loại hình", v.v...) vào Tab tương ứng.
+
+- **Lỗi "Executable doesn't exist at /ms-playwright/..." khi khởi động Container Crawler**:
+  - **Nguyên nhân**: Trong `requirements.txt` không khóa phiên bản `playwright` nên pip tự động tải phiên bản mới nhất (vd: 1.48+ hoặc 1.63), trong khi `Dockerfile` sử dụng base image cũ (vd: `v1.43.0-jammy`). Sự chênh lệch phiên bản này khiến module Python không tìm thấy các file nhị phân của trình duyệt ở đường dẫn nó mong muốn. (Ngoài ra, cố nâng base image lên bản mới có thể dính lỗi GPG apt update do server Ubuntu cũ).
+  - **Cách khắc phục**: Phải đồng bộ cứng phiên bản bằng cách ghi rõ `playwright==1.43.0` vào `requirements.txt` để khớp chính xác với `FROM mcr.microsoft.com/playwright/python:v1.43.0-jammy` trong `Dockerfile`.
+
