@@ -327,6 +327,19 @@
                 }
                 paginationEl.appendChild(createPageBtn(totalPages));
             }
+
+            const backToTopBtn = document.createElement('button');
+            backToTopBtn.innerHTML = '↑ Về đầu trang';
+            backToTopBtn.style.marginLeft = '10px';
+            backToTopBtn.style.background = '#f8fafc';
+            backToTopBtn.style.color = '#0f172a';
+            backToTopBtn.style.border = '1px solid #cbd5e1';
+            backToTopBtn.onmouseover = () => backToTopBtn.style.background = '#e2e8f0';
+            backToTopBtn.onmouseout = () => backToTopBtn.style.background = '#f8fafc';
+            backToTopBtn.onclick = () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+            paginationEl.appendChild(backToTopBtn);
         }
         
         function createPageBtn(pageNum) {
