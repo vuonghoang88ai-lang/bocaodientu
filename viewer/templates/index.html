@@ -140,6 +140,41 @@
             font-size: 1.05rem;
         }
 
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0;
+            width: 100%;
+            padding: 0 1rem;
+        }
+
+        .tab {
+            padding: 0.8rem 1.2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--card-bg);
+            color: #3b82f6;
+            border-top: 2px solid #3b82f6;
+            color: #ffffff;
+        }
+
         @keyframes fadeInDown {
             from { opacity: 0; transform: translateY(-30px); }
             to { opacity: 1; transform: translateY(0); }
@@ -217,6 +252,51 @@
                 btnElement.style.opacity = '1';
             }
         }
+
+        function filterData(btn, type) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const rows = document.querySelectorAll('tbody tr.data-row');
+            let hasVisible = false;
+            
+            rows.forEach(row => {
+                const typeCell = row.querySelector('td:nth-child(4) .badge');
+                if (!typeCell) return;
+                
+                const cellText = typeCell.textContent.trim().toUpperCase();
+                
+                let match = false;
+                if (type === 'HTX') {
+                    match = cellText.includes('HTX') || cellText.includes('TỔ HỢP TÁC') || cellText.includes('LIÊN HIỆP');
+                } else if (type === 'TẤT CẢ') {
+                    match = true;
+                } else {
+                    match = cellText.includes(type) || type.includes(cellText);
+                }
+                
+                if (match) {
+                    row.style.display = '';
+                    hasVisible = true;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            const emptyRow = document.getElementById('empty-row');
+            if (emptyRow) {
+                emptyRow.style.display = hasVisible ? 'none' : '';
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Apply initial filter
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab) {
+                const type = activeTab.getAttribute('onclick').match(/'(.*?)'/)[1];
+                filterData(activeTab, type);
+            }
+        });
     </script>
     <style>
         @keyframes spin {
@@ -231,7 +311,17 @@
             <p class="subtitle">Dữ liệu doanh nghiệp cập nhật tự động theo thời gian thực</p>
         </header>
 
-        <div class="table-wrapper">
+        <div class="tabs">
+            <button class="tab" onclick="filterData(this, 'ĐĂNG KÝ MỚI')">ĐĂNG KÝ MỚI</button>
+            <button class="tab active" onclick="filterData(this, 'ĐĂNG KÝ THAY ĐỔI')">ĐĂNG KÝ THAY ĐỔI</button>
+            <button class="tab" onclick="filterData(this, 'THÔNG BÁO THAY ĐỔI')">THÔNG BÁO THAY ĐỔI</button>
+            <button class="tab" onclick="filterData(this, 'VI PHẠM')">VI PHẠM/ THU HỒI</button>
+            <button class="tab" onclick="filterData(this, 'GIẢI THỂ')">GIẢI THỂ</button>
+            <button class="tab" onclick="filterData(this, 'LOẠI KHÁC')">LOẠI KHÁC</button>
+            <button class="tab" onclick="filterData(this, 'HTX')">HTX, LHHTX, CÁC ĐVTT VÀ TỔ HỢP TÁC</button>
+        </div>
+
+        <div class="table-wrapper" style="border-top-left-radius: 0;">
             <div class="table-responsive">
                 <table>
                     <thead>
@@ -245,7 +335,7 @@
                     </thead>
                     <tbody>
                         {% for row in announcements %}
-                        <tr>
+                        <tr class="data-row">
                             <td style="white-space: nowrap; font-weight: 500;">{{ row[0] }}</td>
                             <td>
                                 <span class="company-name">{{ row[1] }}</span>
@@ -262,13 +352,11 @@
                             </td>
                         </tr>
                         {% endfor %}
-                        {% if not announcements %}
-                        <tr>
+                        <tr id="empty-row" style="display: {% if announcements %}none{% else %}table-row{% endif %};">
                             <td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary);">
-                                <i>Chưa có dữ liệu. Hệ thống đang tiến hành thu thập...</i>
+                                <i>Chưa có dữ liệu cho mục này. Hệ thống đang tiến hành thu thập...</i>
                             </td>
                         </tr>
-                        {% endif %}
                     </tbody>
                 </table>
             </div>
