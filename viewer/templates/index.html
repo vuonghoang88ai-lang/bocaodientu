@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh Sách Bố Cáo Điện Tử</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            --badge-bg: rgba(139, 92, 246, 0.2);
+            --badge-text: #c4b5fd;
+            --badge-border: rgba(139, 92, 246, 0.4);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #1e1b4b, #0b0f19);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1250px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3.5rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #60a5fa, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 1.15rem;
+            font-weight: 400;
+            opacity: 0.8;
+        }
+
+        .table-wrapper {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1.5rem 1.5rem;
+            font-weight: 600;
+            color: #e5e7eb;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 1.5rem 1.5rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        tbody tr {
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.04);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        tbody tr:hover td {
+            color: var(--text-primary);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.4rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--badge-bg);
+            color: var(--badge-text);
+            border: 1px solid var(--badge-border);
+            letter-spacing: 0.025em;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        .company-name {
+            font-weight: 600;
+            color: #f3f4f6;
+            display: block;
+            margin-bottom: 0.35rem;
+            font-size: 1.05rem;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-download {
+            background: var(--primary-gradient);
+            color: #ffffff;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.6);
+            filter: brightness(1.1);
+        }
+
+        .btn-download:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+    </style>
+    <script>
+        function extractTaxCode(companyName) {
+            const match = companyName.match(/\d{10,13}/);
+            return match ? match[0] : null;
+        }
+
+        async function downloadPDFAuto(companyName, announcementType, btnElement) {
+            const taxCode = extractTaxCode(companyName);
+            if (!taxCode) return alert("Không tìm thấy mã số doanh nghiệp hợp lệ trong tên công ty.");
+
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg> Tự giải Captcha...`;
+            btnElement.style.pointerEvents = 'none';
+            btnElement.style.opacity = '0.7';
+
+            try {
+                const response = await fetch(`/api/download_pdf_auto/${taxCode}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ announcement_type: announcementType })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert("Tải thành công! Đang tải file xuống...");
+                    if (data.download_url) {
+                        window.location.href = data.download_url;
+                    }
+                } else {
+                    alert("Lỗi: " + data.error);
+                }
+            } catch (err) {
+                alert("Lỗi kết nối tới server: " + err.message);
+            } finally {
+                // Restore button state
+                btnElement.innerHTML = originalText;
+                btnElement.style.pointerEvents = 'auto';
+                btnElement.style.opacity = '1';
+            }
+        }
+    </script>
+    <style>
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Hệ Thống Bố Cáo Điện Tử</h1>
+            <p class="subtitle">Dữ liệu doanh nghiệp cập nhật tự động theo thời gian thực</p>
+        </header>
+
+        <div class="table-wrapper">
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="15%">Thời gian</th>
+                            <th width="35%">Doanh nghiệp</th>
+                            <th width="20%">Địa điểm</th>
+                            <th width="15%">Loại thông báo</th>
+                            <th width="15%" style="text-align: center;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in announcements %}
+                        <tr>
+                            <td style="white-space: nowrap; font-weight: 500;">{{ row[0] }}</td>
+                            <td>
+                                <span class="company-name">{{ row[1] }}</span>
+                            </td>
+                            <td>{{ row[2] }}</td>
+                            <td><span class="badge">{{ row[3] }}</span></td>
+                            <td style="text-align: center;">
+                                <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                    <button class="btn-download" onclick="downloadPDFAuto('{{ row[1] }}', '{{ row[3] }}', this)" title="Tải PDF tự động">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                        Tải PDF
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not announcements %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary);">
+                                <i>Chưa có dữ liệu. Hệ thống đang tiến hành thu thập...</i>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

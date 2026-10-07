@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: dkkd_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: crawler_user
+      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: dkkd_data
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  crawler_app:
+    build: ./crawler
+    container_name: dkkd_crawler
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_USER=crawler_user
+      - DB_PASSWORD=your_password
+      - DB_NAME=dkkd_data
+      - DB_PORT=5432
+
+  adminer:
+    image: adminer
+    container_name: dkkd_adminer
+    restart: always
+    ports:
+      - "8888:8080"
+    depends_on:
+      - db
+
+  browser:
+    image: lscr.io/linuxserver/chromium:latest
+    container_name: dkkd_browser
+    restart: always
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Ho_Chi_Minh
+      - CHROME_CLI=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --no-sandbox --disable-dev-shm-usage
+    ports:
+      - "3001:3000" # KasmVNC Web UI
+      - "9223:9223" # CDP Proxy
+    shm_size: 2g
+    volumes:
+      - ./downloads:/config/Downloads
+
+  browser_proxy:
+    image: alpine/socat
+    container_name: dkkd_browser_proxy
+    restart: always
+    network_mode: "service:browser"
+    command: tcp-listen:9223,fork,reuseaddr tcp-connect:127.0.0.1:9222
+    depends_on:
+      - browser
+
+
+  viewer_app:
+    build: ./viewer
+    container_name: dkkd_viewer
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - browser
+    volumes:
+      - ./downloads:/app/downloads
+    environment:
+      - DB_HOST=db
+      - DB_USER=crawler_user
+      - DB_PASSWORD=your_password
+      - DB_NAME=dkkd_data
+      - DB_PORT=5432
+
+volumes:
+  pgdata:
