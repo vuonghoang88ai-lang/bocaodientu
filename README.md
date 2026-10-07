@@ -37,7 +37,10 @@ docker compose up -d --build
 ```
 
 ## 4. Cách Truy Cập Dữ Liệu
-1. **Giao diện Khách hàng (Viewer UI):** Truy cập `http://localhost:3000`. Giao diện này hiển thị tối đa 500 bản ghi mới nhất và được tích hợp hệ thống **Tab phân loại động** (Đăng ký mới, Đăng ký thay đổi, Giải thể, v.v...). Bộ lọc hoạt động tức thời trên frontend (Javascript), hỗ trợ khách hàng theo dõi trực quan theo từng phân loại bố cáo.
+1. **Giao diện Khách hàng (Viewer UI):** Truy cập `http://localhost:3000`.
+   - Giao diện hiển thị tối đa 500 bản ghi mới nhất tích hợp hệ thống **Tab phân loại động** (Đăng ký mới, Đăng ký thay đổi, Giải thể, v.v...) lọc bằng Javascript.
+   - **Phân trang (Pagination)**: Dữ liệu được tính toán và chia nhỏ 20 dòng/trang.
+   - **Nút Về đầu trang (Floating)**: Tự động xuất hiện ở góc phải khi người dùng cuộn xuống trang, hỗ trợ trượt lên đầu trang nhanh chóng.
 2. **Giao diện Quản trị Database (Adminer):** Truy cập `http://localhost:8888`
    - **System:** PostgreSQL
    - **Server:** `db`
