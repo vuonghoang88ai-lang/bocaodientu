@@ -3,11 +3,13 @@
 Dự án này là một công cụ cào dữ liệu (web crawler) viết bằng Python, dùng để lấy danh sách các bố cáo "Đăng ký thay đổi" của doanh nghiệp và lưu tự động vào cơ sở dữ liệu PostgreSQL. Dự án cũng đi kèm với các công cụ trực quan hóa dữ liệu hiện đại.
 
 ## 1. Kiến trúc Hệ thống (Docker Compose)
-Dự án bao gồm 4 container (services):
+Dự án bao gồm 6 container (services) chính:
 - **db (`dkkd_postgres`)**: Cơ sở dữ liệu PostgreSQL lưu trữ bảng `announcements`.
-- **crawler_app (`dkkd_crawler`)**: Ứng dụng cào dữ liệu viết bằng Python (sử dụng Playwright Async), tự động giả lập trình duyệt, vượt qua ReCAPTCHA V3 bằng dịch vụ 2captcha để tải file PDF báo cáo và trích xuất dữ liệu tự động.
+- **crawler_app (`dkkd_crawler`)**: Ứng dụng cào dữ liệu viết bằng Python (sử dụng Playwright Async), tự động giả lập trình duyệt, vượt qua ReCAPTCHA bằng 2captcha.
 - **viewer_app (`dkkd_viewer`)**: Ứng dụng Web viết bằng Python (Flask), hiển thị dữ liệu cào được dạng bảng hiện đại (port 3000) và cung cấp các API tải PDF.
-- **adminer (`dkkd_adminer`)**: Công cụ quản trị CSDL qua giao diện Web siêu tốc (port 8888).
+- **browser (`dkkd_browser`)**: Container chạy Chromium (`lscr.io/linuxserver/chromium`) độc lập để cào dữ liệu.
+- **browser_proxy (`dkkd_browser_proxy`)**: Dịch vụ `socat` để expose cổng Debugging (CDP) an toàn.
+- **adminer (`dkkd_adminer`)**: Công cụ quản trị CSDL qua giao diện Web (port 8888).
 
 ## 2. Cấu trúc Thư mục
 ```text
@@ -26,7 +28,6 @@ bocaodientu/
 │   ├── pdf_downloader.py    # Logic hỗ trợ tải file PDF về từ backend API
 │   └── templates/           
 │       └── index.html       # Giao diện hiển thị danh sách công ty cào được
-└── tests/                   # Các file kịch bản chạy thử riêng lẻ (nếu có)
 ```
 
 ## 3. Cách Chạy (Run)
@@ -46,10 +47,10 @@ docker compose up -d --build
 ## 5. Thiết Kế Kỹ Thuật (Lưu Ý)
 - Trang web nguồn dùng **ASP.NET WebForms**, crawler sử dụng **Playwright (Async)** chạy chế độ headless nhằm dễ dàng vượt qua các cơ chế kiểm tra bot và điều hướng phân trang.
 - Chế độ **Mở khóa Captcha**: Hệ thống tiêm Token tự động giải bằng API của dịch vụ thứ 3 (2captcha) thông qua JavaScript tiêm vào trang để bấm nút "Tải về".
-- Cơ chế **Tải PDF & Phân quyền qua Docker CDP**: 
-  - Do cấu trúc crawler kết nối qua CDP (Chrome DevTools Protocol) tới container trình duyệt độc lập (`lscr.io/linuxserver/chromium`), hàm `download.save_as()` mặc định của Playwright không thể truyền file qua mạng (gây ra lỗi file 0 byte).
-  - **Giải pháp:** Sử dụng CDP Session gửi lệnh `Browser.setDownloadBehavior` (với `behavior: allow`) để chỉ định trình duyệt tự lưu file vào thư mục nội bộ của nó (VD: `/config/Downloads`).
-  - **Shared Volume & Permissions:** Thư mục này được chia sẻ (mount) ra ngoài host (`./downloads`) và nối vào Backend (`viewer_app`). Do container trình duyệt chạy dưới quyền user phi-root (UID 1000) còn Backend chạy dưới quyền root, thư mục `downloads/` phải được phân quyền `chown 1000:1000` và `chmod 777`. Nếu không, trình duyệt sẽ bị lỗi "Access Denied" và backend chỉ tạo ra file vỏ 0 byte. Backend sau đó trực tiếp đọc thư mục chung này để phục vụ (serve) file đính kèm cho người dùng.
+- Cơ chế **Tải PDF qua Playwright Remote CDP**: 
+  - Khác với phương pháp cũ bị lỗi file 0 byte (do dùng lẫn lộn lệnh CDP `Browser.setDownloadBehavior` và Playwright stream dẫn tới xung đột), hệ thống hiện tại **tuyệt đối không can thiệp bằng lệnh CDP `Browser.setDownloadBehavior`**.
+  - Thay vào đó, crawler khởi tạo context với `accept_downloads=True`, kết hợp sử dụng hàm `page.expect_download()` và gọi hàm `download.save_as(file_path)` chuẩn của Playwright. Playwright sẽ tự động stream nội dung file PDF qua websocket CDP và ghi thẳng file xuống local (ở container Python), giúp dữ liệu được truyền tải an toàn.
+  - Nhờ cơ chế này, quá trình ghi file thực hiện bởi ứng dụng backend đang chạy nên loại bỏ triệt để các rắc rối về cấp quyền (Permission Denied/chown 777) so với việc ép container Chromium độc lập tự ghi file.
 - Để vào tab "Đăng ký thay đổi", script gọi click vào đối tượng `ctl00$C$RptProdGroups$ctl02$LnkActiveAnnType` trên giao diện web.
 - **Mã số doanh nghiệp** đã được bóc tách từ các thẻ lồng bên trong bảng dữ liệu.
 - Có cơ chế **Retry Connection** trong code kết nối CSDL để tránh Crash crawler khi PostgreSQL chưa khởi động kịp trong Docker.
