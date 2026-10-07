@@ -153,5 +153,18 @@ async def crawl_playwright(max_pages=2):
             db_session.close()
             await browser.close()
 
+import time
+
+async def main_loop():
+    while True:
+        print(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Bắt đầu chu kỳ cào dữ liệu mới...")
+        try:
+            await crawl_playwright()
+        except Exception as e:
+            print(f"[-] Lỗi trong quá trình cào dữ liệu: {e}")
+        
+        print("[*] Hoàn thành chu kỳ. Đợi 3 phút (180s) cho chu kỳ tiếp theo...")
+        await asyncio.sleep(180)
+
 if __name__ == "__main__":
-    asyncio.run(crawl_playwright())
+    asyncio.run(main_loop())
