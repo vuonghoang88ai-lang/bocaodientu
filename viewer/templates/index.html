@@ -271,6 +271,10 @@
                     match = cellText.includes('HTX') || cellText.includes('TỔ HỢP TÁC') || cellText.includes('LIÊN HIỆP');
                 } else if (type === 'TẤT CẢ') {
                     match = true;
+                } else if (type === 'ĐĂNG KÝ THAY ĐỔI') {
+                    match = cellText.includes('THAY ĐỔI NỘI DUNG') || cellText.includes('CHUYỂN ĐỔI LOẠI HÌNH') || cellText.includes('ĐĂNG KÝ THAY ĐỔI') || cellText === '4';
+                } else if (type === 'THÔNG BÁO THAY ĐỔI') {
+                    match = cellText.includes('THÔNG BÁO THAY ĐỔI') || cellText.includes('MẪU DẤU');
                 } else {
                     match = cellText.includes(type) || type.includes(cellText);
                 }
