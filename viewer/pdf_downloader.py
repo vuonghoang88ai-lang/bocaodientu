@@ -213,19 +213,6 @@ async def download_pdf_auto(ma_so_dn: str, announcement_type_vi: str, download_d
                 "ma_so_dn": ma_so_dn,
                 "file_path": file_path,
                 "message": "Download success"
-            } "error": "File bị 0 byte hoặc không tải được"}
-
-            
-            print("[+] Tải file thành công!", flush=True)
-            
-            await context.close()
-            await browser.close()
-            
-            return {
-                "success": True,
-                "ma_so_dn": ma_so_dn,
-                "file_path": file_path,
-                "message": "Download success"
             }
             
     except PlaywrightTimeoutError as e:
