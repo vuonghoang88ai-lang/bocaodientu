@@ -212,6 +212,35 @@
             transform: translateY(0) scale(0.98);
         }
 
+        .pagination {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid var(--border-color);
+        }
+        .pagination button {
+            background: #1d4ed8;
+            color: #ffffff;
+            border: 1px solid #1e40af;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            min-width: 32px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .pagination button.active {
+            background: #3b82f6;
+            border-color: #60a5fa;
+            font-weight: bold;
+        }
+        .pagination button:hover:not(.active) {
+            background: #2563eb;
+        }
+
     </style>
     <script>
         function extractTaxCode(companyName) {
@@ -253,12 +282,81 @@
             }
         }
 
+        const rowsPerPage = 20;
+        let currentPage = 1;
+        let visibleRows = [];
+
+        function renderPagination() {
+            const paginationEl = document.getElementById('pagination');
+            if (!paginationEl) return;
+            paginationEl.innerHTML = '';
+            
+            if (visibleRows.length === 0) return;
+            
+            const totalPages = Math.ceil(visibleRows.length / rowsPerPage);
+            if (totalPages <= 1) return;
+            
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+            
+            if (startPage > 1) {
+                paginationEl.appendChild(createPageBtn(1));
+                if (startPage > 2) {
+                    const dots = document.createElement('span');
+                    dots.innerHTML = '...';
+                    dots.style.padding = '4px 8px';
+                    dots.style.color = 'var(--text-secondary)';
+                    paginationEl.appendChild(dots);
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationEl.appendChild(createPageBtn(i));
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const dots = document.createElement('span');
+                    dots.innerHTML = '...';
+                    dots.style.padding = '4px 8px';
+                    dots.style.color = 'var(--text-secondary)';
+                    paginationEl.appendChild(dots);
+                }
+                paginationEl.appendChild(createPageBtn(totalPages));
+            }
+        }
+        
+        function createPageBtn(pageNum) {
+            const btn = document.createElement('button');
+            btn.innerHTML = pageNum;
+            if (pageNum === currentPage) btn.classList.add('active');
+            btn.onclick = () => {
+                currentPage = pageNum;
+                displayCurrentPage();
+                renderPagination();
+            };
+            return btn;
+        }
+        
+        function displayCurrentPage() {
+            visibleRows.forEach((row, index) => {
+                if (index >= (currentPage - 1) * rowsPerPage && index < currentPage * rowsPerPage) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
         function filterData(btn, type) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             btn.classList.add('active');
             
             const rows = document.querySelectorAll('tbody tr.data-row');
-            let hasVisible = false;
+            visibleRows = [];
             
             rows.forEach(row => {
                 const typeCell = row.querySelector('td:nth-child(4) .badge');
@@ -280,8 +378,7 @@
                 }
                 
                 if (match) {
-                    row.style.display = '';
-                    hasVisible = true;
+                    visibleRows.push(row);
                 } else {
                     row.style.display = 'none';
                 }
@@ -289,8 +386,12 @@
             
             const emptyRow = document.getElementById('empty-row');
             if (emptyRow) {
-                emptyRow.style.display = hasVisible ? 'none' : '';
+                emptyRow.style.display = visibleRows.length > 0 ? 'none' : '';
             }
+            
+            currentPage = 1;
+            displayCurrentPage();
+            renderPagination();
         }
         
         document.addEventListener('DOMContentLoaded', () => {
@@ -364,6 +465,7 @@
                     </tbody>
                 </table>
             </div>
+            <div id="pagination" class="pagination"></div>
         </div>
     </div>
 </body>
